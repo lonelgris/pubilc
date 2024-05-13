@@ -25,20 +25,16 @@ import (
 var discordUrl = flag.String("discordUrl",
 	"https://discord.com/api/webhooks/1075323981193826354/rCJrCgDxYIV3E-gpuhh6F8zh8smCnev9Tguil9flnMaI2fVMNTwbp2fYEh0yAwcWsDIX", "discord url")
 
-var RobotThread = flag.String("RobotThread", "1075322890276319232", "RobotThread")
-
-var uploadIpa = flag.String("uploadIpa", "PhantomBladeEX.ipa", "上传ipa文件")
-
-// 日志参数
-var gitPath = flag.String("gitPath", "", "gitPath")
-var tag = flag.String("tag", "", "tag")
-var execTime = flag.String("execTime", "", "execTime") //执行时间
-var userName = flag.String("userName", "", "userName")
-
-var sGameHubUser = flag.String("sGameHubUser", "", "sGameHubUser")
-var sGameHubPassword = flag.String("sGameHubPassword", "", "sGameHubPassword")
-var packerPath = flag.String("packerPath", "/packer/yzr3Ex/ipa", "packerPath")                                 //ipa上传路径
-var plistTemplatePath = flag.String("plistTemplatePath", "/packer/yzr3Ex/template.plist", "plistTemplatePath") //plist模板路径
+var robotThread = flag.String("robotThread", "1075322890276319232", "robotThread")
+var gitPath = flag.String("gitPath", "", "git工程对应路径")
+var tag = flag.String("tag", "", "git打包tag")
+var execTime = flag.String("execTime", "", "执行时间") //执行时间
+var userName = flag.String("userName", "", "执行人")
+var uploadIpa = flag.String("uploadIpa", "PhantomBladeEX.ipa", "上传ipa文件名")
+var sGameHubUser = flag.String("sGameHubUser", "", "sGameHub用户名")
+var sGameHubPassword = flag.String("sGameHubPassword", "", "sGameHub密码")
+var packerPath = flag.String("packerPath", "/packer/yzr3Ex/ipa", "ipa上传路径")
+var plistTemplatePath = flag.String("plistTemplatePath", "/packer/yzr3Ex/template.plist", "plist对应模板路径")
 
 const (
 	sGameHubUrl = "https://nasload.s-game.cn" //sGame hub ipa https下载地址
@@ -50,13 +46,10 @@ const (
 )
 
 func main() {
-	generate()
+	upload()
 }
 
-func generate() {
-
-	//检测打包shell是否执行成功
-
+func upload() {
 	flag.Parse()
 
 	if *uploadIpa == "" {
@@ -82,6 +75,8 @@ func generate() {
 		execExit(fmt.Sprintf("创建上传目录失败:%v", err))
 	}
 
+	timeUnixStr := fmt.Sprintf("%d", time.Now().Unix())
+
 	//下载plist 模板文件
 	plistTemplateUrl := sGameHubUrl + *plistTemplatePath
 
@@ -89,8 +84,6 @@ func generate() {
 	if err != nil {
 		execExit(fmt.Sprintf("下载plist模板文件失败:%v", err))
 	}
-
-	timeUnixStr := fmt.Sprintf("%d", time.Now().Unix())
 
 	plistNewName := fmt.Sprintf("ipa_%s.plist", timeUnixStr)
 
@@ -103,38 +96,28 @@ func generate() {
 		execExit(fmt.Sprintf("复制plist文件失败:%v", err))
 	}
 
+	//替换plist文件内容
 	ipaNewName := fmt.Sprintf("ipa_%s.ipa", timeUnixStr)
-
-	fmt.Println("处理plist文件中...")
 
 	if err = ReplaceFileContentField(uploadFolder+plistNewName, "__REPLACE_URL__",
 		sGameHubUrl+*packerPath+"/"+ipaNewName); err != nil {
 		execExit(fmt.Sprintf("替换plist文件内容失败:%v", err))
 	}
 
-	fmt.Printf("生成plist文件成功\n")
-
+	//重命名ipa文件
 	if err = RunCommand("cp", *uploadIpa, uploadFolder+ipaNewName); err != nil {
 		execExit(fmt.Sprintf("复制ipa文件失败:%v", err))
 	}
-
-	fmt.Printf("上传文件中plist文件中...\n")
 
 	if err = RunCommand("sshpass", "-p", "123456", "rsync", "-a", "--append", "--delete", "-m", "-P", "-r",
 		"-e", "ssh -p 22", "--chmod=ugo=rwx", uploadFolder+plistNewName, "root@"+plistMachineIp+":/home/jubin/ipa/download/"); err != nil {
 		execExit(fmt.Sprintf("上传plist文件失败:%v", err))
 	}
 
-	fmt.Printf("上传文件ipa文件中...\n")
-
 	if err = RunCommand("sshpass", "-p", *sGameHubPassword, "rsync", "-a", "--append", "--delete", "-m", "-P", "-r",
 		"-e", "ssh -p 22", "--chmod=ugo=rwx", uploadFolder+ipaNewName, *sGameHubUser+"@192.168.0.200:/volume1/web/"+*packerPath); err != nil {
 		execExit(fmt.Sprintf("上传ipa文件失败:%v", err))
 	}
-
-	fmt.Printf("上传ipa文件成功\n")
-
-	fmt.Println("生成二维码中...")
 
 	downloadUrl := "itms-services:///?action=download-manifest&url=" + plistHttpsUrl + plistNewName
 
@@ -147,8 +130,6 @@ func generate() {
 	if err != nil {
 		execExit(fmt.Sprintf("生成二维码失败: %s, err: %s", pngName, err))
 	}
-
-	fmt.Printf("生成二维码成功\n")
 
 	if err = sendDiscordMessage("ipa文件上传成功", *tag, pngName); err != nil {
 		execExit(fmt.Sprintf("发送消息失败: %s", err))
@@ -282,7 +263,7 @@ func sendDiscordMessage(title string, tag string, pngPath string) error {
 
 	b.AddFile(title+".png", pngPath, f)
 
-	threadID, _ := snowflake.Parse(*RobotThread)
+	threadID, _ := snowflake.Parse(*robotThread)
 	_, err = client.CreateMessageInThread(b.Build(), threadID)
 
 	if err != nil {
@@ -310,7 +291,7 @@ func senDiscordErrMsg(errMsg string) error {
 	b.SetUsername(*userName)
 	b.AddEmbeds(eb.Build())
 
-	threadID, _ := snowflake.Parse(*RobotThread)
+	threadID, _ := snowflake.Parse(*robotThread)
 	_, err = client.CreateMessageInThread(b.Build(), threadID)
 
 	if err != nil {
