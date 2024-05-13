@@ -7,7 +7,7 @@ rsyncLibraryPath=/volume1/web/packer/yzr3Ex/Library/${target}
 
 startTime=$(date +%s)
 
-buildPath=~/jenkinsBuild_$JOB_NAME
+buildPath=~/jenkinsBuild/${directory}
 
 rm -rf "$buildPath"
 
@@ -129,17 +129,7 @@ upload=upload-${target}
 wget https://nasload.s-game.cn/packer/yzr3Ex/$upload
 
 chmod +x $upload
-./$upload --tag="$server_tag" --execTime="${take} seconds" --sGameHubUser=$rsyncAccount --sGameHubPassword=$rsyncPasswd --gitPath=pbex-client --userName="$JOB_NAME"
-
-sshpass -p $rsyncPasswd \
-rsync -a \
-      --append \
-      --delete \
-      -m \
-      -r \
-      -e "ssh -p 22" \
-      --chmod=ugo=rwx \
-      pbex-client/Client/Library $rsyncAccount@192.168.0.200:$rsyncLibraryPath/
+./$upload --tag="$git_tag" --execTime="${take} seconds" --sGameHubUser=$rsyncAccount --sGameHubPassword=$rsyncPasswd --gitPath=pbex-client --userName="${directory}"
 
 sshpass -p $rsyncPasswd \
 rsync -a \

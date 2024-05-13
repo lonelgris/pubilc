@@ -1,4 +1,4 @@
-module github.com/ipaPacker
+module github.com/public
 
 go 1.20
 
