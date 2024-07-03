@@ -66,16 +66,3 @@ custom_args="productPath=$xcode_path#productName=$xcode_name#keystoreName=$keyst
 wget https://nasload.s-game.cn/packer/yzr3CN/pbxproj
 
 chmod +x pbxproj && ./pbxproj
-
-# build archive
-xcode_log_file=$(pwd)/xcode_pack.log
-
-scheme_name=Unity-iPhone
-project_name=${xcode_path}/${xcode_name}
-build_configuration=Release
-export_archive_path=$(pwd)/${scheme_name}.xcarchive
-
-xcodebuild clean -workspace "${project_name}/${scheme_name}.xcworkspace" -scheme ${scheme_name} -configuration ${build_configuration}
-
-security unlock-keychain -p "123456"
-xcodebuild archive -workspace "${project_name}/${scheme_name}.xcworkspace" -scheme ${scheme_name} -configuration ${build_configuration} -archivePath ${export_archive_path} -destination 'generic/platform=iOS' >> "${xcode_log_file}"
